@@ -1,0 +1,252 @@
+title: "The relationship between streamer and follower from a linguistic point of view"
+author: "Jiahao Cai, Eli Sorensen, Chloe Sileno, Zixiao Hu"
+date: '2022-07-31'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	fig.height = 3,
+	message = FALSE
+)
+library(tidyverse)
+source("../scripts/ggprob.R")
+
+###Working Directory was set inside a folder named 'final_project' which resides in the 'stat240' folder. The dataset 'twitch' is read in from a folder labeled 'data' which is also directly inside the 'stat240' folder. The functions 'ggprob.R' is read in from a folder labeled 'scripts' also directly inside the 'stat240' folder.
+
+###read in and modify data variable names
+twitch <- read_csv("twitchdata-update.csv")
+colnames(twitch) <- gsub(' ', '_', colnames(twitch))
+colnames(twitch) <- gsub('\\(', '_', colnames(twitch))
+colnames(twitch) <- gsub('\\)', '', colnames(twitch))
+names(twitch) <- tolower(names(twitch)) 
+
+twitch <- twitch %>% select(channel, average_viewers, followers, language, everything())
+
+###the dataset twitch_focus zeros in on our questions of interest
+twitch_focused <- twitch %>% select(channel, average_viewers, followers, language)
+```
+
+## Introduction:
+
+
+After our investigation, we found that the twitch streaming platform appears to be centered around the United States, with English as the core language. twitch has a number of prominent figures on the platform that could provide some evidence for our findings, such as early pioneers like LIRIK or Destiny, or more recent superstars like Ninja or xQc - most of whom are from the United States. However, it is quite possible that this appearance comes from our own biases – perhaps we only think this because, living in the US, we don’t hear about streamers speaking other languages. Thus, we seek objective evidence of just how English-centric the twitch platform is. The following data analysis investigates the popularity of twitch streamers lumped into two categories: English speaking and non-English speaking. The metrics we use to assess popularity are average viewers and followers. Specifically, we investigate two questions of interest:
+
+
+1) Do English speaking streamers tend to have more average viewers than streamers speaking other languages?
+
+
+2) Do English speaking streamers tend to have more followers than streamers speaking other languages?
+
+
+Through our analysis we find strong evidence supporting the claim that English speaking streamers tend to have more followers, but insufficient evidence supporting the claim that they tend to have more average viewers.
+
+
+## Background:
+
+**Sources:**
+Dataset ^[https://www.kaggle.com/datasets/aayushmishra1512/twitchdata], Aayush's source for compiling data (SullyGnome): ^[https://sullygnome.com/]
+
+The dataset we used for this project is downloaded from a kaggle post titled “Top Streamers on Twitch” by Aayush Mishra. The data is from 2019-2020, featuring data on the top 1000 twitch streamers from that year, and was compiled by Aayush, taken from the twitch statistics and analytics website called “SullyGnome”. Each row of the dataset describes multiple variables for one of the top 1000 twitch channels, with first columns containing the channel names. The columns from the dataset that are relevant to our analysis are the following:
+
+
+Language: values are categorical, referencing the language spoken by the streamer. We mutate the values of this column to be either “English” or “Other”.
+
+
+Average Viewers: values are the average viewers per stream for the streamer (over the year 2019-2020). We average these values across “English” and “Other” groups.
+
+
+Followers: values are the number of followers the streamer had at the end of the 2019-2020 year. We average these values across “English” and “Other” groups.
+
+
+Focusing on average viewers data and followers data after grouping or filtering based on English/Other values in the Language column, we use data visualization and hypothesis testing to provide informative analysis in regard to our two questions of interest.
+
+
+## Question1
+
+
+Do English streamers tend to have more average viewers than streamers speaking other languages? (Language versus Average Viewers)
+
+
+## Research
+
+```{r, echo=FALSE}
+# Graphing the observed Twitch data
+average_viewers = twitch_focused %>% mutate(language = case_when(language == 'English' ~ 'English',
+                                                         TRUE ~ 'other_languages')) %>% 
+  group_by(language) %>%
+  summarise(average_viewers = mean(average_viewers))
+
+ggplot(average_viewers)+
+  geom_bar(aes(x = language, y = average_viewers, fill = language),
+           stat = "identity",
+           width = 0.3)+
+  xlab("Language")+
+  ylab("Average Viewers") + 
+  ggtitle("The Average Viewers in Twitch in Different Language",
+          subtitle = "For top 1000 streamers") + 
+  theme(legend.position="none")
+
+# Summarizing the data in a table
+average_viewers2 = average_viewers %>%
+  pivot_wider(names_from = language, values_from = average_viewers)  %>% 
+  mutate(difference = English - other_languages)
+
+average_viewers2 %>% print()
+
+```
+
+
+The bar graph above shows the averaged average viewers column for streamers after they have been lumped into two groups: English speaking streamers and streamers speaking all other languages. In order to do this, we mutated the column 'language' in what we called the focused dataset by using the 'case_when' function to display either 'English' or 'other_languages' respectively. We then grouped the data by the variable 'language' and took the mean of the average viewers column both groups. The graph visualizes a significant difference between the English group and the other group. The table above quantifies this difference, showing that the English streamers average about 644 more viewers than streamers speaking other languages. 
+
+
+**Hypothesis Test**
+
+
+Test the hypothesis that the English streamers are likely to have the same average viewers than streamers speaking other languages against the one-sided alternative that English streamers tend to have more Average viewers than streamers speaking other languages.
+
+
+H0: $\mu_E = \mu_O$
+
+Ha: $\mu_E > \mu_O$
+
+
+Using functions, we extracted two vectors containing the average viewers, one exclusively pertaining to English speaking streamers and one pertaining to the remainder of streamers speaking other languages. Then, we used the 't.test' function to run a Welch Two Sample t-test with our English vector as the x variable and our other vector as the y variable. We specify that we have a one-sided alternative hypothesis, saying that English speaking streamers have more average viewers than streamers speaking other languages. The output gives us the p-value, t statistic, and degrees of freedom that we use for our interpretation and visualization. 
+
+```{r, echo=FALSE}
+english_ave_v = twitch_focused %>% 
+  filter(language == 'English') %>% 
+  pull(average_viewers)
+
+other_language_ave_v = twitch_focused %>%
+  filter(language != 'English') %>%
+  pull(average_viewers)
+
+t.test(english_ave_v, other_language_ave_v ,alternative = "greater")
+```
+
+
+```{r}
+gt(df=946.84)+
+  geom_t_fill(946.84, a = 1.1984, b = 4)+
+  geom_vline(xintercept = 1.1984, linetype = "dashed", color = "red")+
+  xlab("t statistic")+
+  ggtitle("P-value visualization",
+          subtitle = "946.84 df, t = 1.1984")+
+  theme_minimal()
+```
+
+
+The above density curve shows the distribution of the t statistic under the null hypothesis which says that there is no difference in average viewers between English streamers and streamers that speak other languages. The red dashed line shows the t statistic given by our sample data, and the red shaded area under the curve is equal to our p-value, the probability that our sample would have English streamers with 644 more average viewers than non-English streamers if the null hypothesis were true. 
+
+
+**Interpretation:**
+With a p-value of 0.1155, we have not found significant enough evidence that there is a difference in average viewers between English streamers and other language streamers. Therefore, we do not reject the null hypothesis that $\mu_E = \mu_O$. The evidence is consistent with there being no difference in the average viewers for English streamers and other languages streamers.
+
+
+## Question2
+
+Do streamers speaking English tend to have more followers than streamers speaking other languages? (Language versus Followers)
+
+## Research
+
+```{r, echo=FALSE}
+# Graphing the observed Twitch data
+average_followers = twitch_focused %>% mutate(language = case_when(language == 'English' ~ 'English',
+                                                         TRUE ~ 'other_languages')) %>% 
+  group_by(language) %>%
+  summarise(average_followers = mean(followers))
+
+ggplot(average_followers)+
+  geom_bar(aes(x = language, y = average_followers, fill = language),
+           stat = "identity",
+           width = 0.3)+
+  xlab('Language')+
+  ylab("Average Followers") + 
+  ggtitle("The Average Followers in Twitch in Different Language",
+          subtitle = "For top 1000 streamers")+
+  scale_y_continuous(labels = scales::comma) + 
+  theme(legend.position="none")
+
+# Summarizing the data in a table
+average_followers2 = average_followers %>% 
+  pivot_wider(names_from = language, values_from = average_followers) %>% 
+  mutate(difference = English - other_languages)
+
+average_followers2 %>% print()
+```
+
+
+Using the same method we used previously to lump streamers into "English" and "other_Languages" groups, we averaged (mean) the followers column for each group respectively. The above bar graph visualizes the difference between the two groups' mean followers, showing English speaking streamers with a significantly larger average value. Again, the table quantifies this difference at about 263362 followers, favoring English streamers. 
+
+
+**Hypothesis Test**
+
+
+Test the hypothesis that there is no difference in average followers between English streamers and streamers speaking other languages against the one-sided alternative that English streamers have more average followers than streamers speaking other languages.
+
+
+H0: $\mu_E = \mu_O$
+
+Ha: $\mu_E > \mu_O$
+
+
+Like earlier, we filtered our focused dataset into English and non-English groups, and we pulled two vectors, one for each group, with values this time coming from the column 'followers'. We again used the 't.test' function, placing the English followers vector in the x position and the non-English followers vector in the y position, and specified that we have a one-side alternative hypothesis saying that the English group on average has more followers. We did this by way of using "alternative = 'greater'" as an argument. We use the p-value, t-statistic, and degrees of freedom from the t.test output for interpretation and visualization.
+```{r, echo=FALSE}
+english_f = twitch_focused %>% 
+  filter(language == 'English') %>% 
+  pull(followers)
+
+other_language_f = twitch_focused %>% 
+  filter(language != 'English') %>% 
+  pull(followers)
+
+t.test(english_f, other_language_f, alternative = "greater")
+```
+
+```{r}
+gt(df=726.39,a=-6,b=6)+
+  geom_t_fill(726.39, a = 5.1548, b = 6)+
+  geom_vline(xintercept = 5.1548, linetype = "dashed", color = "red")+
+  xlab("t statistic")+
+  ggtitle("P-value visualization",
+          subtitle = "726.39 df, t = 5.1548")+
+  theme_minimal()
+```
+
+
+As was shown for our first question, the above density curve shows the distribution of the t-statistic under the null hypothesis -- this time that there is no difference in average followers between English speaking streamers and non-English speaking streamers. Again, the red dashed line shows the t-statistic we got from running a 't-test' on our sample data. The graph is still set to show a red shaded area for the p-value, however, this area is so small that it is not visible, giving us a clear representation of how unlikley it would be to get our observed results -- that the English group had 263362 more average followers than the non-English group -- if the null hypothesis were true.
+
+**Interpretation:**
+With a p-value of 1.638e-07, we have found very strong evidence to reject the null hypothesis that $\mu_E = \mu_O$. As a result, we turn to our alternative hypothesis that says that English streamers tend to have more followers than non-English streamers on average.
+
+
+## Discussion:
+
+
+**Summary of findings:**
+
+
+In our observed data, we found that English streamers objectively had more average viewers than streamers speaking other languages. Nonetheless our p-value was around .11, which means that this difference in average viewers could reasonably occur under our null hypothesis, saying that there is no difference in the population means for English streamers' average viewers and non-English streamers' average viewers. Thus, we did not reject this null hypothesis, and __do not conclude__ that English streamers have more average viewers than non-Englsih streamer.
+
+
+Next in our sample, we found that English streamers quantitatively had significantly more average followers than non-English streamers. However, a simple mean calculation was not sufficient enough to make any conclusions. With that in mind, our p-value turned out to be extremely small, supporting the notion that a difference of this magnitude would be very unlikely to occur under the null hypothesis, which says that there is no difference in the population means for English streamers' followers and non-English streamers' followers. Consequently, we have strong evidence to reject the null hypothesis, and conclude that based on our sample, English streamers tend to have more followers on average than streamers speaking other languages.
+
+
+**Potential short-comings of our analysis/Opportunities for future improvements:**
+
+
+One major shortcoming of our analysis is that it lacks random sampling. A sample of the top 1000 streamers is not a random sample, and does not represent the reality of less popular streamers in each language group. It is likely that there are thousands of English speaking streamers that have very few views per stream and have very few to no followers that would significantly bring down the population means (average viewers and followers) for the English speaking group. The same is true for the non-English speaking group. Our sample fails to accommodate the true population, and as a result, we observed inflated data.
+This shortcoming could be corrected in future research by taking a large random sample of all streamers rather than a sample of the top 1000 streamers.
+
+
+Our analysis could be enhanced with more in-depth data that explores into the streamers' content. We could ask similar questions about followers and average viewers but within specific genres of streaming content. For example, how do followers and average viewers for English v. non-English streamers compare for content exclusively involving sports? How about for streamers who do IRL streams? More specific, content based analysis could lead us to more interesting and informative conclusions.
+
+**Broader Conclusions:**
+
+
+Because our analysis is done at an amateur level, we are hesitant to make broad conclusions. However, our low p-value for our first question suggests that based on average views, twitch may be less English-centric than we suspected. This would be worth further investigation to find out whether this was a shortcoming of our analysis, or if there is indeed no difference in the amount of twitch views between English and non-English streamers. 
+
+
+Because our p-value was so low for our second question, and because our statistical findings confirmed our early observations, we would be less inclined to further investigate the difference in followers between English and non-English twitch streamers. As a result, we conclude that English streamers do tend to have more followers than non-English streamers.
